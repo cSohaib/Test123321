@@ -122,69 +122,64 @@ function gameStrategy1(game, sendTroops, sendBombs, sendMessage) {
     });
 
     var attackers = copyOfGame.factories.filter(f => f.owner == 1 && futureGame.factories[f.id].owner == 1 && f.cyborgs > 0 && futureGame.factories[f.id].cyborgs > 0);
-    foreach (var attacker in attackers)
-        attacker.cyborgs = Math.min(attacker.cyborgs, futureGame.factories[attacker.id].cyborgs);
+    attackers.forEach(attacker => attacker.cyborgs = Math.min(attacker.cyborgs, futureGame.factories[attacker.id].cyborgs));
+    
     int availableCyborgs = attackers.sum(f => f.cyborgs);
 
-    while (availableCyborgs > 0)
-    {
+    while (availableCyborgs > 0) {
         var dest = futureGame.factories.where(f => f.owner != 1
-                            && (!bombs.any(b => b.isExploded == false && b.destination == f.id)
-                                            || attackers.any(a => f.links.first(l => l.factory == a.id).distance > bombs.first(b => b.isExploded == false && b.destination == f.id).distance)))
-                .orderBy(f => factories[f.id].owner == 1 ? 0
-                                : factories[f.id].troops.any(t => t.owner == 1) || bombs.any(b => b.owner == 1 && !b.isExploded && b.destination == f.id) ? 1
-                                : factories[f.id].owner == 0 ? 2 : 3)
-                .thenByDescending(f =>
-                    {
+            && (!bombs.any(b => b.isExploded == false && b.destination == f.id)
+                || attackers.any(a => f.links.first(l => l.factory == a.id).distance > bombs.first(b => b.isExploded == false && b.destination == f.id).distance)))
+            .orderBy(f => factories[f.id].owner == 1 ? 0
+                : factories[f.id].troops.any(t => t.owner == 1) || bombs.any(b => b.owner == 1 && !b.isExploded && b.destination == f.id) ? 1
+                    : factories[f.id].owner == 0 ? 2 : 3)
+            .thenByDescending(f => {
                         int distance = 0;
                         int sourcesCount = 0;
                         int cyborgs = 0;
-                        var sources = f.links.where(l => attackers.any(a => a.id == l.factory)).orderBy(l => l.distance);
-                        foreach (var source in sources)
-                        {
-                            distance += source.distance;
-                            sourcesCount++;
-                            cyborgs += Math.min(factories[source.factory].cyborgs, futureGame.factories[source.factory].cyborgs);
-                            if (cyborgs > futureGame.factories[f.id].cyborgs) break;
-                        }
+                var sources = f.links.where(l => attackers.any(a => a.id == l.factory)).orderBy(l => l.distance);
+                foreach(var source in sources)
+        {
+            distance += source.distance;
+            sourcesCount++;
+            cyborgs += Math.min(factories[source.factory].cyborgs, futureGame.factories[source.factory].cyborgs);
+            if (cyborgs > futureGame.factories[f.id].cyborgs) break;
+        }
                         float score = (float)f.production / ((float)factories[f.id].cyborgs + ((float)distance / (float)sourcesCount));
-                        return score;
-                    })
+        return score;
+    })
                 .firstOrDefault();
 
-        if (dest is null) break;
+    if (dest is null) break;
 
-        if (factories[dest.id].owner == -1 && remainingBombs > 0 && !factories[dest.id].troops.any(t => t.owner == 1) && !bombs.any(b => b.destination == dest.id))
-        {
-            remainingBombs--;
+    if (factories[dest.id].owner == -1 && remainingBombs > 0 && !factories[dest.id].troops.any(t => t.owner == 1) && !bombs.any(b => b.destination == dest.id)) {
+        remainingBombs--;
             int source = dest.links.where(l => factories[l.factory].owner == 1).orderBy(l => l.distance).first().factory;
 
-            if (attackers.any(a => a.id == source))
-            {
-                var attacker = attackers.first(a => a.id == source);
-                availableCyborgs -= attacker.cyborgs;
-                attacker.cyborgs = 0;
-                attackers.remove(attacker);
-            }
-            game.sendBomb(source, dest.id);
-            bombs.add(new Bomb { Destination = dest.id, Distance = dest.links.first(l => l.factory == source).distance, IsExploded = false, Owner = 1, Source = source });
+        if (attackers.any(a => a.id == source)) {
+            var attacker = attackers.first(a => a.id == source);
+            availableCyborgs -= attacker.cyborgs;
+            attacker.cyborgs = 0;
+            attackers.remove(attacker);
         }
-
-        while (availableCyborgs > 0 && dest.owner != 1)
-        {
-            var source = attackers.where(a => !bombs.any(b => b.isExploded == false && b.destination == dest.id)
-                                            || dest.links.first(l => l.factory == a.id).distance > bombs.first(b => b.isExploded == false && b.destination == dest.id).distance)
-                            .orderBy(a => dest.links.first(l => l.factory == a.id).distance).firstOrDefault();
-            if (source == null) break;
-            int cyborgs = Math.min(dest.cyborgs + 1, source.cyborgs);
-            dest.cyborgs -= cyborgs;
-            source.cyborgs -= cyborgs;
-            availableCyborgs -= cyborgs;
-            if (dest.cyborgs < 0) dest.owner = 1;
-            if (source.cyborgs == 0) attackers.remove(source);
-            game.sendTroops(source.id, dest.id, cyborgs);
-        }
+        game.sendBomb(source, dest.id);
+        bombs.add(new Bomb { Destination = dest.id, Distance = dest.links.first(l => l.factory == source).distance, IsExploded = false, Owner = 1, Source = source });
     }
+
+    while (availableCyborgs > 0 && dest.owner != 1) {
+        var source = attackers.where(a => !bombs.any(b => b.isExploded == false && b.destination == dest.id)
+            || dest.links.first(l => l.factory == a.id).distance > bombs.first(b => b.isExploded == false && b.destination == dest.id).distance)
+            .orderBy(a => dest.links.first(l => l.factory == a.id).distance).firstOrDefault();
+        if (source == null) break;
+            int cyborgs = Math.min(dest.cyborgs + 1, source.cyborgs);
+        dest.cyborgs -= cyborgs;
+        source.cyborgs -= cyborgs;
+        availableCyborgs -= cyborgs;
+        if (dest.cyborgs < 0) dest.owner = 1;
+        if (source.cyborgs == 0) attackers.remove(source);
+        game.sendTroops(source.id, dest.id, cyborgs);
+    }
+}
 }
 
 function deepCopy(obj) {
