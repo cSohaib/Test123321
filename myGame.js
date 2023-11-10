@@ -142,7 +142,7 @@ function gameStrategy1(game, sendTroops, sendBombs, sendMessage) {
             sourcesCount++;
             cyborgs += Math.min(copyOfGame.factories[source.factory].cyborgs, futureGame.factories[source.factory].cyborgs);
         });
-        score = f.production / (copyOfGame.factories[f.id].cyborgs + (distance / sourcesCount));
+        score += f.production / (copyOfGame.factories[f.id].cyborgs + (distance / sourcesCount));
         return score;
     }
 
