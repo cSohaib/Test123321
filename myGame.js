@@ -76,18 +76,24 @@ function processInput(game, input) {
 function makeTurn(game, gameStrategy) {
     let commands = [];
     let message = "";
-    gameStrategy(game,
-        (source, destination, cyborgs) => commands.push(["MOVE", source, destination, cyborgs].join(' ')),
-        (source, destination) => commands.push(["BOMB", source, destination].join(' ')),
-        msg => message = msg
-    );
+    try {
+        gameStrategy(game,
+            (source, destination, cyborgs) => commands.push(["MOVE", source, destination, cyborgs].join(' ')),
+            (source, destination) => commands.push(["BOMB", source, destination].join(' ')),
+            (factory) => commands.push(["INC", factory].join(' ')),
+            msg => message = msg
+        );
+    }
+    catch (error) {
+        console.error(error);
+    }
     if (message) commands.push("MSG " + message);
     if (!commands.length) commands.push("WAIT");
     let output = commands.join(';');
     return output;
 }
 
-function gameStrategy1(game, sendTroops, sendBombs, sendMessage) {
+function gameStrategy1(game, sendTroops, sendBombs, increaseProduction, sendMessage) {
     let copyOfGame = deepCopy(game);
     let futureGame = deepCopy(game);
 
